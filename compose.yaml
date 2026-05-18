@@ -1,0 +1,35 @@
+# - script --quiet --return --command "nxcli status" /dev/null | grep --fixed-strings --quiet "NetExtender has been connected"
+---
+services:
+  netextender:
+    image: andreswebs/netextender
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_USERNAME: ${VPN_USERNAME:?VPN_USERNAME is required}
+      VPN_PASSWORD: ${VPN_PASSWORD:?VPN_PASSWORD is required}
+      VPN_DOMAIN: ${VPN_DOMAIN:?VPN_DOMAIN is required}
+      VPN_SERVER: ${VPN_SERVER:?VPN_SERVER is required}
+    ports:
+      - 127.0.0.1:1080:1080
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - script --quiet --return --command "nxcli status" /dev/null | grep --fixed-strings --quiet "NetExtender has been connected"
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  socks:
+    image: serjs/go-socks5-proxy
+    restart: unless-stopped
+    network_mode: service:netextender
+    environment:
+      REQUIRE_AUTH: "false"
+    depends_on:
+      netextender:
+        condition: service_healthy

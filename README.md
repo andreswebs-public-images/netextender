@@ -34,7 +34,56 @@ docker run \
     andreswebs/netextender
 ```
 
-`ALWAYS_TRUST` and `AUTO_RECONNECT` are optional; unset them to disable.
+## Compose with SOCKS5 proxy
+
+The tunnel lives inside the container's network namespace, so the VPN is only usable from processes that share that namespace. The bundled [compose.yaml](compose.yaml) wires up two services:
+
+- `netextender` — the VPN client (this image)
+- `socks` — a [SOCKS5 server](https://hub.docker.com/r/serjs/go-socks5-proxy) running in `network_mode: service:netextender`, sharing the VPN's network stack
+
+The SOCKS5 server's port (`1080`) is published on the `netextender` container and bound to `127.0.0.1` on the host, so anything on your machine can reach VPN-side resources by routing through `127.0.0.1:1080`. `depends_on` with `condition: service_healthy` makes the proxy wait until the VPN tunnel is actually up.
+
+Bring it up:
+
+```sh
+export VPN_USERNAME="user@example.com"
+export VPN_PASSWORD="your-password"
+export VPN_DOMAIN="LocalDomain"
+export VPN_SERVER="vpn.example.com:4433"
+```
+
+```sh
+docker compose up --detach
+docker compose ps
+```
+
+### SSH through the proxy
+
+Use `ncat` (from `nmap`) as the SOCKS5 client — its `--proxy-type socks5` flag works identically on macOS and Linux:
+
+```sh
+brew install nmap   # or `apt install ncat`
+```
+
+Then in `~/.ssh/config`:
+
+```sshconfig
+# Example - assuming the 192.168.102.* is in your VPN:
+Host 192.168.102.*
+    User your-username
+    ProxyCommand ncat --proxy 127.0.0.1:1080 --proxy-type socks5 %h %p
+    StrictHostKeyChecking accept-new
+    UserKnownHostsFile ~/.ssh/known_hosts_vpn
+```
+
+Now `ssh your-username@192.168.102.9` will tunnel through the containerized VPN.
+
+For other tools, point them at `socks5://127.0.0.1:1080`. Examples:
+
+```sh
+curl --socks5 127.0.0.1:1080 http://internal.example.com/
+git -c http.proxy=socks5://127.0.0.1:1080 clone ...
+```
 
 ## Authors
 
