@@ -83,4 +83,7 @@ ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
 ENV S6_KEEP_ENV=1
 ENV VPN_ALWAYS_TRUST=1
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD script --quiet --return --command "nxcli status" /dev/null | grep --quiet StateConnected
+
 ENTRYPOINT ["/init"]
