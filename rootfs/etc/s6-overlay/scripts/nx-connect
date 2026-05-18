@@ -1,0 +1,37 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+exec 2>&1
+
+: "${VPN_USERNAME:?VPN_USERNAME is required}"
+: "${VPN_PASSWORD:?VPN_PASSWORD is required}"
+: "${VPN_DOMAIN:?VPN_DOMAIN is required}"
+: "${VPN_SERVER:?VPN_SERVER is required}"
+
+for _ in {1..50}; do
+    if (echo >/dev/tcp/127.0.0.1/51330) 2>/dev/null; then
+        break
+    fi
+    sleep 0.2
+done
+
+ARGS=(netExtender)
+ARGS+=(--domain="${VPN_DOMAIN}")
+ARGS+=(--username="${VPN_USERNAME}")
+ARGS+=(--password="${VPN_PASSWORD}")
+
+if [ -n "${VPN_ALWAYS_TRUST:-}" ]; then
+    ARGS+=(--always-trust)
+fi
+
+ARGS+=("${VPN_SERVER}")
+
+exec script \
+    --quiet \
+    --return \
+    --command "$(printf '%q ' "${ARGS[@]}")" \
+    /dev/null

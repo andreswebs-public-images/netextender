@@ -1,0 +1,4 @@
+#!/command/execlineb -P
+# shellcheck shell=sh
+fdmove -c 2 1
+/usr/local/netextender/NEService
